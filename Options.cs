@@ -8,6 +8,6 @@ public sealed class Options
     public string Path { get; set; } = null!;
 
     [Option('v', "verbose", Required = false, HelpText = "Sets whether to print the stacktrace of an exception.")]
-    public bool Verbose { get; set; } = false;
+    public bool IsVerbose { get; set; } = false;
 
 }

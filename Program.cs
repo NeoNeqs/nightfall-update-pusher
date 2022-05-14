@@ -27,7 +27,7 @@ public static class Program
         }
         catch (Exception e)
         {
-            LogError(e, options.Verbose);
+            LogError(e, options.IsVerbose);
             return; 
         }
 
@@ -38,7 +38,7 @@ public static class Program
         }
         catch (Exception e)
         {
-            LogError(e, options.Verbose);
+            LogError(e, options.IsVerbose);
             return;
         }
 
@@ -49,7 +49,7 @@ public static class Program
         }
         catch (Exception e)
         {
-            LogError(e, options.Verbose);
+            LogError(e, options.IsVerbose);
             return;
         }
         
@@ -67,7 +67,7 @@ public static class Program
             }
             catch (Exception e)
             {
-                LogError(e, options.Verbose);
+                LogError(e, options.IsVerbose);
                 return;
             }
             updateInfo[filePath] = algorithm.ComputeHashS(fileContents);
@@ -78,7 +78,7 @@ public static class Program
             }
             catch (Exception e)
             {
-                LogError(e, options.Verbose);
+                LogError(e, options.IsVerbose);
                 return;
             }
         }
@@ -103,7 +103,7 @@ public static class Program
         }
         catch (Exception e)
         {
-            LogError(e, options.Verbose);
+            LogError(e, options.IsVerbose);
             return;
         }
 
