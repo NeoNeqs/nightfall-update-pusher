@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        
+        <Copyright>Copyright (c) 2022, Michael March</Copyright>
+        <Company>Michael March (NeqsTech)</Company>
+        <Version>0.1.0</Version>
+        <AssemblyTitle>Nightfall Update Pusher</AssemblyTitle>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="CommandLineParser" Version="2.9.0-preview1" />
+    </ItemGroup>
+
+</Project>
