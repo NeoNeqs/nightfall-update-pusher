@@ -1,6 +1,5 @@
-﻿using CommandLine;
-using System.Security.Cryptography;
-using System.Text;
+﻿using System.Security.Cryptography;
+using CommandLine;
 
 namespace Nightfall.UpdatePusher;
 
@@ -10,7 +9,7 @@ public static class Program
     {
         for (var i = 0; i < args.Length; i++)
         {
-            // Command line arguments are terribly handled by .NET and so they require a bit of trimming :)
+            // Command line arguments are terribly handled by .NET and so they require a little bit of trimming
             args[i] = args[i].Trim('"').Trim();
         }
 
@@ -19,109 +18,84 @@ public static class Program
 
     private static void Run(Options options)
     {
-        // Prepare directories 
-        DirectoryInfo root;
-        try
-        {
-            root = Directory.CreateDirectory(Path.Combine(options.Path, "temp"));
-        }
-        catch (Exception e)
-        {
-            LogError(e, options.IsVerbose);
-            return; 
-        }
-
-        DirectoryInfo filesDirectory;
-        try
-        {
-            filesDirectory = root.CreateSubdirectory("files");
-        }
-        catch (Exception e)
-        {
-            LogError(e, options.IsVerbose);
-            return;
-        }
-
-        IEnumerable<string> files;
-        try
-        {
-            files = Directory.EnumerateFiles(Path.Combine(options.Path, ".new"));
-        }
-        catch (Exception e)
-        {
-            LogError(e, options.IsVerbose);
-            return;
-        }
+        Utils.Configure(options.IsVerbose, options.Quiet);
+        using var hashAlgorithm = SHA256.Create();
         
-        using var algorithm = SHA256.Create();
-        Dictionary<string, string> updateInfo = new();
-        
-        foreach (string filePath in files)
+        //TODO: parse main .info file
+        foreach (string filePath in GetFiles(options.Source))
         {
-            // Calculate hash of each file. This is needed to calculate the update hash and generate the .info file later
-            byte[] fileContents;
+            string fileName = Path.GetFileName(filePath);
+            string fileVersionsDirectory = Path.Combine(options.Destination, fileName);
 
-            try
+            if (IsFileNew(fileVersionsDirectory))
             {
-                fileContents = File.ReadAllBytes(filePath);
+                // File was never part of any build. It will the first version of it.
+                bool success = CreateVersioningDirectory(fileVersionsDirectory);
+                if (!success) return;
+
+                using var infoFile = new InfoFile(Path.Combine(fileVersionsDirectory, ".info"));
+                success = infoFile.CreateNew();
+                if (!success) return;
+
+                string? hash = hashAlgorithm.ComputeHashFileS(filePath);
+                if (hash is null) return;
+                infoFile.WritePair("latest", hash);
+                
+                // The copied file is renamed to latest to indicate it's the latest file.
+                File.Copy(filePath, Path.Combine(fileVersionsDirectory, "latest"));
+                continue;
             }
-            catch (Exception e)
-            {
-                LogError(e, options.IsVerbose);
-                return;
-            }
-            updateInfo[filePath] = algorithm.ComputeHashS(fileContents);
+
+            // Seems like the file has appeared before in some build(s)
             
-            try
-            {
-                File.Copy(filePath, Path.Combine(filesDirectory.FullName, Path.GetFileName(filePath)), true);
-            }
-            catch (Exception e)
-            {
-                LogError(e, options.IsVerbose);
-                return;
-            }
         }
+    }
 
-        using (StreamWriter infoFile = CreateInfoFile(root.FullName, Encoding.UTF8))
-        {
-            foreach ((string filePath, string fileHash) in updateInfo)
-            {
-                infoFile.WriteLine($"{Path.GetFileName(filePath)} {fileHash}");
-            }
-        }
-
-        string combinedHashes = updateInfo.Values.Aggregate(string.Empty, (current, hash) => current + hash);
-        byte[] combinedHashesBytes = Encoding.ASCII.GetBytes(combinedHashes);
-        string updateHash = algorithm.ComputeHashS(combinedHashesBytes);
-
-        string realUpdatePath = Path.Combine(options.Path, updateHash);
+    private static bool CreateVersioningDirectory(string path)
+    {
+        DirectoryInfo newFileDirectory;
 
         try
         {
-            Directory.Move(root.FullName, realUpdatePath);
+            newFileDirectory = Directory.CreateDirectory(path);
         }
         catch (Exception e)
         {
-            LogError(e, options.IsVerbose);
-            return;
+            Utils.LogError(e);
+            return false;
         }
 
-        using StreamWriter rootInfoFile = CreateInfoFile(options.Path, Encoding.ASCII);
-        rootInfoFile.WriteLine($"latest {updateHash}");
-    }
-
-    private static StreamWriter CreateInfoFile(string path, Encoding encoding)
-    {
-        FileStreamOptions fsOptions = new()
+        try
         {
-            Access = FileAccess.Write, Mode = FileMode.Create
-        };
-        return new StreamWriter(Path.Combine(path, ".info"), encoding, fsOptions);
+            newFileDirectory.CreateSubdirectory("patches");
+        }
+        catch (Exception e)
+        {
+            Utils.LogError(e);
+            return false;
+        }
+
+        return true;
     }
 
-    private static void LogError(Exception exception, bool verbose)
+    private static bool IsFileNew(string path)
     {
-        Console.Error.WriteLine(verbose ? exception : exception.Message);
+        return !Directory.Exists(path);
+    }
+
+    private static string[] GetFiles(string path)
+    {
+        string[]? files = Array.Empty<string>();
+
+        try
+        {
+            files = Directory.GetFiles(path);
+        }
+        catch (Exception e)
+        {
+            Utils.LogError(e);
+        }
+
+        return files;
     }
 }
